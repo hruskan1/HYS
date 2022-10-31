@@ -2,8 +2,9 @@
 % Pendulum on a cart - supervisory control example
 %% Linearization around the upper (unstable) position
 
-g = 9.81;
-L = 1;
+m = 1;  % [ kg ]
+g = 9.81;   % [ m s^2 ]
+L = 1;  % [ m ]
 
 % x = [theta; dtheta]
 
@@ -25,23 +26,53 @@ ctrl = ss(0, zeros(1,2), 0, K);
 ctrlplant = feedback(plant, ctrl);
 initial(ctrlplant, [pi/6, 0, 0])
 
-%% Original (nonlinear system)
+%% Original (nonlinear system) with nonlinear supervisory control
 
-T = 5;
+T = 7;
 Ts = 0.05;
 t = 0:Ts:T;
 N = numel(t);
 X = zeros(2, N);
 U = zeros(1, N);
-X(:, 1) = [pi / 2; 0];
+X(:, 1) = [0 ; 10];
+Eref = m * g * L;
+mode = NaN(1, N);
+P = 1;
+
 for k = 2:N
-    u = -K * X(:, k-1);
+    theta = X(1, k-1);
+    dtheta = X(2, k-1);
+%     Supervisory control, local/global controller selection
+    if mod(abs(theta), 2*pi) < pi / 3
+        u = -K * mod(X(:, k-1), 2*pi);
+        mode(k) = 1;
+    else
+        Etilde = Eref - m * L^2 * dtheta^2 / 2 - m * g * L * cos(theta);
+        u = P * dtheta * cos(theta) * Etilde;
+        mode(k) = 0;
+    end
+    
+    U(k) = u;
     [~, y] = ode45(@(~, x) pendcartODE(t(k), x, u, [g, L]), [0, Ts], X(:, k-1));
     X(:, k) = y(end, :)';
 end
 
-plot(t, X(1,:))
+plotstates(t, X, U, mode)
 
+function plotstates(t, X, U, mode)
+    subplot 311
+    plot(t, X(1,:))
+    ylabel('\theta (rad)')
+    subplot 312
+    plot(t, X(2,:))
+    ylabel('d\theta (rad/s)')
+    subplot 313
+    scatter(t(mode == 1), U(mode == 1), 'b')
+    hold on
+    scatter(t(mode == 0), U(mode == 0), 'r')
+    ylabel('u (m s^{-2})')
+    xlabel('Time (s)')
+end
 
 function xdot = pendcartODE(t, x, u, params)
     theta = x(1);
