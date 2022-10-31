@@ -39,16 +39,18 @@ Eref = m * g * L;
 mode = NaN(1, N);
 P = 1;
 
+umax = 20;
+
 for k = 2:N
     theta = X(1, k-1);
     dtheta = X(2, k-1);
 %     Supervisory control, local/global controller selection
-    if mod(abs(theta), 2*pi) < pi / 3
-        u = -K * mod(X(:, k-1), 2*pi);
+    if abs(wrapToPi(theta)) < pi / 6 && abs(dtheta) < 2
+        u = max([-umax, min([umax, -K * wrapToPi(X(:, k-1))])]);
         mode(k) = 1;
     else
         Etilde = Eref - m * L^2 * dtheta^2 / 2 - m * g * L * cos(theta);
-        u = P * dtheta * cos(theta) * Etilde;
+        u = max([-umax, min([umax, P * dtheta * cos(theta) * Etilde])]);
         mode(k) = 0;
     end
     
