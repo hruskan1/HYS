@@ -49,6 +49,7 @@ for k = 2:N
         u = max([-umax, min([umax, -K * wrapToPi(X(:, k-1))])]);
         mode(k) = 1;
     else
+%     Energy shaping 
         Etilde = Eref - m * L^2 * dtheta^2 / 2 - m * g * L * cos(theta);
         u = max([-umax, min([umax, P * dtheta * cos(theta) * Etilde])]);
         mode(k) = 0;
